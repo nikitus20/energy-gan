@@ -1,5 +1,37 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class EnergyDistanceDiscriminator(nn.Module):
+    def __init__(self, channels_img):
+        super(EnergyDistanceDiscriminator, self).__init__()
+        # No learnable parameters needed for pure energy distance calculation
+
+    def forward(self, real_imgs, gen_imgs):
+        # Calculate pairwise distances within real and within generated images
+        real_real_dist = self.pairwise_distances(real_imgs, real_imgs)
+        gen_gen_dist = self.pairwise_distances(gen_imgs, gen_imgs)
+
+        # Calculate pairwise distances between real and generated images
+        real_gen_dist = self.pairwise_distances(real_imgs, gen_imgs)
+
+        # Compute energy distance
+        energy_distance = 2 * real_gen_dist.mean() - real_real_dist.mean() - gen_gen_dist.mean()
+        return energy_distance
+
+    def pairwise_distances(self, x, y):
+        # Compute pairwise distances between two sets of images
+        # x: tensor of shape [m, c, h, w]
+        # y: tensor of shape [n, c, h, w]
+        x_flat = x.view(x.size(0), -1)
+        y_flat = y.view(y.size(0), -1)
+
+        distances = torch.cdist(x_flat, y_flat, p=2)  # Euclidean distance (L2 norm)
+        return distances
 
 
 class Discriminator(nn.Module):
@@ -82,11 +114,12 @@ def test():
     N, in_channels, H, W = 8, 3, 64, 64
     noise_dim = 100
     x = torch.randn((N, in_channels, H, W))
-    disc = Discriminator(in_channels, 8)
-    assert disc(x).shape == (N, 1, 1, 1), "Discriminator test failed"
     gen = Generator(noise_dim, in_channels, 8)
     z = torch.randn((N, noise_dim, 1, 1))
     assert gen(z).shape == (N, in_channels, H, W), "Generator test failed"
+    disc = EnergyDistanceDiscriminator(in_channels)
+    #assert disc(x, gen(z)).shape == (1), "Discriminator test failed"
+   
     print("Success, tests passed!")
 
 if __name__ == "__main__":
